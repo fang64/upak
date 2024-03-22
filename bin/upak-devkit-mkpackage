@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+import os, os.path, sys, re, commands, pickle, tempfile
+
+def usage():
+    s = 'usage: ' + os.path.basename(sys.argv[0]) + ' <package_name_as_directory>\n'
+    sys.stderr.write(s)
+    sys.exit(1)
+
+if ((len(sys.argv)-1) != 1):
+    usage()
+
+dir = sys.argv[1]
+
+if os.access(dir,os.F_OK):
+    sys.stderr.write("ERROR: directory %s exists!\n"%(dir))
+    sys.exit(1)
+
+os.mkdir(dir)
+
+insttemplate = """#!/bin/sh
+
+set -e
+R=FILL_IN_PACKAGENAME_HERE
+#R=%s
+upak-wget $R.tar.gz
+gunzip -c $R.tar.gz | tar xvf -
+# bunzip2 -c $R.tar.bz2 | tar xvf -
+cd $R
+./configure --prefix=$UPAKINSTALLDIR
+make
+make install
+""" % (dir)
+
+environmenttemplate = """#!/bin/sh
+
+# if your package requires any additional environment variables to be
+# set, beyond basic 'bin','lib','info' etc directories added to
+# PATH/LD_LIBRARY_PATH/INFOPATH etc, this script should emit them
+# somehow to stdout using the protcol below.  follow the examples
+# below.  also rename this file to environment from environment.README.
+
+# echo "set PACKAGE_HOME $UPAKINSTALLDIR"
+# echo "set FOO BAR
+# echo "append PATH $UPAKINSTALLDIR/xyz/bin"
+# echo "append CLASSPATH /some/jar/dir"
+# echo "prepend PATH $UPAKINSTALLDIR/xyz/bin"
+# echo "prepend LD_LIBRARY_PATH $UPAKINSTALLDIR/xyz/lib"
+"""
+
+open(os.path.join(dir,'inst'),'w').write(insttemplate)
+os.chmod(os.path.join(dir,'inst'),0755)
+open(os.path.join(dir,'prereq'),'w').write("# list any packages your package depends on here, one per line\n")
+open(os.path.join(dir,'provides'),'w').write("# list any virtual packages your package provides here, one per line (e.g. mpi)\n")
+open(os.path.join(dir,'environment.README'),'w').write(environmenttemplate)
+os.chmod(os.path.join(dir,'environment.README'),0755)
+open(os.path.join(dir,'ignore-commons.README'),'w').write("if your package doesn't respect the file heirarchy standard (bin,lib,etc.),\nrename this file to 'ignore-commons'\n")
+

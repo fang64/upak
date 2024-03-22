@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+import os, os.path, sys, re, commands, pickle, tempfile, getopt
+import socket, string, random, threading, time, traceback
+
+use = None
+if len(sys.argv) > 1:
+    use = sys.argv[1:]
+
+common_paths = ['PATH',
+                'INFOPATH',
+                'MANPATH',
+                'LD_LIBRARY_PATH',
+                'PKG_CONFIG_PATH',
+                'CPATH',
+                'LIBRARY_PATH',
+                'PYTHONPATH']
+
+if use:
+    common_paths = list(set(common_paths).intersection(set(use)))
+
+n = 0
+for cp in common_paths:
+    if n:
+        print
+    print '%s:' % cp
+    val = os.getenv(cp)
+    if val:
+        vals = val.split(':')
+        for v in vals:
+            print '   ', (v or '<empty string>')
+    n += 1

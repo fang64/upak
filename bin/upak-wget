@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+
+import os, os.path, sys, re, commands, pickle, tempfile, getopt, datetime
+import socket, string, random, time, traceback, shutil, popen2, urllib
+from upaklib import *
+
+proxy_mgr = upak_proxy_mgr()
+sources = Sources(upak_sourcefileexpanded(), proxy_mgr)
+
+def usage():
+    s = 'usage: ' + os.path.basename(sys.argv[0]) + ' <filename> ...\n'
+    sys.stderr.write(s)
+    sys.exit(1)
+    
+if ((len(sys.argv)-1) < 1):
+    usage()
+
+for fn in sys.argv[1:]:
+    url = os.getenv('UPAKWGETURL') + '/' + fn
+    pxy = proxy_mgr.get_proxy_for_url(url)
+    if pxy:
+        pxy={'http':pxy}
+    oldenv = None
+    if not pxy and os.getenv('http_proxy'):
+        oldenv = os.getenv('http_proxy')
+        del os.environ['http_proxy']
+    print 'fetching', fn, 'from', url, '...',
+    fob = urllib.urlopen(url, proxies=pxy)
+    print 'done'
+    open(fn,'w').write(fob.read())
+    if not pxy and oldenv:
+        os.environ['http_proxy'] = oldenv

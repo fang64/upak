@@ -1,0 +1,108 @@
+#!/bin/sh
+# set -x
+EchoNoNewline() {
+    if [ "`echo -n`" = "-n" ]; then
+	echo "$@\c"
+    else
+	echo -n "$@"
+    fi
+}
+
+requireutil () {
+    while [ -n "$1" ]; do
+        type $1 >/dev/null 2>/dev/null
+	if [ $? -ne 0 ]; then
+	    echo Missing utility "$1". Please install it before proceeding. 1>&2
+	    exit 1
+	fi
+	shift
+    done
+}
+
+requireutil cc wget sleep gunzip bzcat tar make mktemp
+
+UH=$UPAK_HOME
+if [ "x${UH}" = "x" ]; then
+    UH=$HOME/.upak
+fi
+
+python_checkversion () {
+    $PYTHON -c 'import sys; sys.version_info' >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        return 1
+    else
+	MAJ=`$PYTHON -c 'import sys; print sys.version_info[0]'`
+	MIN=`$PYTHON -c 'import sys; print sys.version_info[1]'`
+	if [ $MAJ -gt 2 ]; then
+	    return 0
+	elif [ $MAJ -eq 2 ] && [ $MIN -ge 3 ]; then
+	    return 0
+	else
+	    return 1
+	fi
+    fi   
+}
+
+# ensure we have sufficient python, or else install one
+install_python=1
+
+PYTHONS="$UH/python-local/bin/python /usr/bin/python /usr/local/bin/python"
+
+for python in $PYTHONS; do
+    PYTHON=$python
+    if [ -f $python ]; then
+	python_checkversion
+	if [ $? -eq 0 ]; then
+	    install_python=0
+	    break
+	fi        
+    fi
+done
+
+if [ $install_python -eq 1 ]; then
+    INSTALLDIR=$UH/python-local
+    echo "upak requires Python version 2.3 or later."
+    echo "It seems you do not have python installed in any one of"
+    for py in $PYTHONS; do
+	echo "    $py"
+    done
+    echo "or it is older than version 2.3...with your permission,"
+    echo "this program will install a fresh copy of python 2.3"
+    echo "under $INSTALLDIR on machine "`hostname`"."
+    EchoNoNewline "proceed? (y or n) "
+    read answer
+    if [ "${answer}x" = "yx" ] || [ "${answer}x" = "yesx" ]; then
+        proceed=1
+    else
+        proceed=0
+    fi
+    if [ $proceed -eq 0 ]; then
+        echo "ERROR: cannot proceed without python 2.3 installed"
+        exit 1
+    fi
+    sleep 2
+    set -e
+    T=`mktemp -d /tmp/pythonbuild.XXXXXX`
+    OLDDIR=$PWD
+    cd $T
+    wget_opts=""
+    if [ -f $UH/http_proxy ]; then
+	http_proxy=`cat $UH/http_proxy`
+	wget_opts="-Y on"
+	export http_proxy
+    fi
+
+    wget "$wget_opts" http://www.python.org/ftp/python/2.3/Python-2.3.tgz
+    gunzip Python-2.3.tgz
+    tar xf Python-2.3.tar
+    cd Python-2.3
+    ./configure --disable-ipv6 --prefix=$INSTALLDIR
+    make
+    make install
+    cd $OLDDIR
+    rm -fr $T
+    set +e
+    PYTHON=$INSTALLDIR/bin/python
+fi
+unset PYTHONPATH
+$PYTHON -O `dirname $0`/upak.py ${1+"$@"}

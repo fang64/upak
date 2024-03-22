@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+
+import os, os.path, sys
+
+def usage():
+    s = 'usage: ' + os.path.basename(sys.argv[0]) + ' <sourcedir> <webhostdir>\n'
+    sys.stderr.write(s)
+    sys.exit(1)
+
+if ((len(sys.argv)-1) != 2):
+    usage()
+
+srcdir = sys.argv[1]
+destdir = sys.argv[2]
+
+if not os.access(destdir,os.F_OK):
+    os.mkdir(destdir)
+    os.system('chmod 755 %s' % (destdir))
+    print 'made directory', destdir
+
+dirs = os.listdir(srcdir)
+dirs.sort()
+ls = []
+for d in dirs:
+    if os.path.isdir(os.path.join(srcdir,d)):
+        ls.append(d)
+    elif d == '.include':
+        ls.append(d)
+os.chdir(srcdir)
+cmd = 'tar czvf %s/packages-tmp.tar.gz %s && chmod 644 %s/packages-tmp.tar.gz && mv %s/packages-tmp.tar.gz %s/packages.tar.gz' % (destdir, ' '.join(ls), destdir, destdir, destdir)
+print cmd
+os.system(cmd)
